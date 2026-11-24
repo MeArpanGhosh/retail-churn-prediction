@@ -238,6 +238,6 @@ https://doi.org/10.24432/C5CG6D — License: CC BY 4.0
 
 ## 📬 Contact
 
-**Arpan** — [LinkedIn](https://linkedin.com/in/yourprofile) · [Email](mailto:your.email@example.com)
+**Arpan** — [LinkedIn](https://www.linkedin.com/in/arpan-ghosh-b45466b0/) · [Email](mailto:19aghosh91@gmail.com)
 
 *Built as part of a data science portfolio demonstrating end-to-end ML pipeline development for retail/e-commerce analytics.*
