@@ -1,0 +1,8 @@
+step,rows
+rows in raw file,1067371
+exact duplicate rows (the two sheets overlap in Dec 2010),34335
+missing customer id,235151
+"non-product stock codes (postage, fees, adjustments)",3662
+price <= 0,60
+non-return rows with quantity <= 0,0
+rows after cleaning,794163

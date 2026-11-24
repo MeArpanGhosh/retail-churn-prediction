@@ -1,0 +1,25 @@
+{
+  "Baseline: recency only": {
+    "roc_auc": 0.658394109735414,
+    "pr_auc": 0.5335651552387379,
+    "precision_at_top20pct": 0.6036036036036037,
+    "recall_at_top20pct": 0.3136704119850187,
+    "lift_at_top20pct": 1.5683520599250937
+  },
+  "Logistic regression": {
+    "roc_auc": 0.7566673029539086,
+    "pr_auc": 0.6141549731123057,
+    "brier": 0.23456179111119052,
+    "precision_at_top20pct": 0.645045045045045,
+    "recall_at_top20pct": 0.3352059925093633,
+    "lift_at_top20pct": 1.6760299625468162
+  },
+  "XGBoost": {
+    "roc_auc": 0.758840278737694,
+    "pr_auc": 0.6227162175517199,
+    "brier": 0.23570134690371142,
+    "precision_at_top20pct": 0.6648648648648648,
+    "recall_at_top20pct": 0.3455056179775281,
+    "lift_at_top20pct": 1.7275280898876404
+  }
+}
