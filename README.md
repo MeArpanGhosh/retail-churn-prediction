@@ -8,7 +8,7 @@ Built with **SQL** (CTEs, window functions), **Python**, **Pandas**, **scikit-le
 
 ## 📌 Business Problem
 
-Acquiring a new customer costs **5–7× more** than retaining an existing one. For an online retailer with thousands of active accounts, the question is:
+Acquiring a new customer costs more than retaining an existing one. For an online retailer with thousands of active accounts, the question is:
 
 > *Which customers are most likely to lapse in the next 90 days, and how should a retention campaign be prioritized so it reaches the most at-risk customers first?*
 
@@ -35,7 +35,7 @@ This project answers that by building a **churn propensity model** that scores e
               ┌───────────────┼───────────────┐
               ▼               ▼               ▼
        ┌────────────┐  ┌───────────┐  ┌────────────┐
-       │  Recency   │  │  Logistic │  │  XGBoost   │
+       │  Recency   │  │  Logistic │  │  XGBoost*  │    *XGBoost edges out logistic regression by only 0.002 ROC-AUC — a gap that may not be statistically significant, suggesting the simpler model        |            |  |           |  |            |     is a viable production choice where interpretability matters
        │  Baseline  │  │ Regression│  │  (best)    │
        └────────────┘  └───────────┘  └────────────┘
               │               │               │
@@ -205,6 +205,8 @@ Based on the model results:
 - **Single retailer, single period**: Results describe this UK gift/wholesale business during 2009–2011; generalization requires validation
 - **No marketing features**: Purchase history only — no email opens, promo exposure, or browsing data
 - **Fixed 90-day churn window**: Seasonal or infrequent buyers may be misclassified
+- **Label distribution shift**: The churn rate dropped from 53.6% in training to 38.5% in testing, likely because the test snapshot (Sept 2011) falls closer to the holiday buying season. This
+    ~15pp shift means the model was trained on a harder population than it was tested on, which may flatter test-set precision.
 - **Conservative hyperparameters**: XGBoost was not tuned on the test set; proper time-series CV could improve performance
 - **Propensity ≠ persuadability**: The model predicts *who will lapse*, not *who will respond to an offer*
 
