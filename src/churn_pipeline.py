@@ -1,5 +1,8 @@
 """Customer churn prediction for an online retailer (UCI Online Retail II).
 
+Data source: https://archive.ics.uci.edu/dataset/502/online+retail+ii
+Citation: Chen, D. (2012). Online Retail II [Dataset]. UCI ML Repository. CC BY 4.0.
+
 End-to-end pipeline that:
   1. Loads and cleans raw transactions (every removal is logged for auditability).
   2. Loads them into SQLite and builds customer features + churn label with SQL

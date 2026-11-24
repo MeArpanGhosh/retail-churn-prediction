@@ -222,8 +222,15 @@ Based on the model results:
 
 ---
 
-## 📄 Data Citation
+## 📄 Data Source & Citation
 
+> **This project uses the [Online Retail II](https://archive.ics.uci.edu/dataset/502/online+retail+ii) dataset from the UCI Machine Learning Repository.**
+>
+> The dataset contains ~1.07 million transaction records from a UK-based online retailer covering the period Dec 2009 – Dec 2011. It is freely available under the CC BY 4.0 licence.
+>
+> **Download**: https://archive.ics.uci.edu/dataset/502/online+retail+ii
+
+**Citation:**  
 Chen, D. (2012). *Online Retail II* [Dataset]. UCI Machine Learning Repository.  
 https://doi.org/10.24432/C5CG6D — License: CC BY 4.0
 
