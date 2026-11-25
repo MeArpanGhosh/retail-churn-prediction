@@ -129,10 +129,10 @@ def clean(df: pd.DataFrame):
 # --------------------------------------------------------------------------- #
 # 2. SQL Feature Engineering                                                   #
 # --------------------------------------------------------------------------- #
-def build_db(df: pd.DataFrame) -> sqlite3.Connection:
+def build_db(df: pd.DataFrame, db_path: Path = DB_PATH) -> sqlite3.Connection:
     """Load cleaned transactions into SQLite for SQL-based feature engineering."""
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    con = sqlite3.connect(DB_PATH)
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    con = sqlite3.connect(db_path)
     df.to_sql("transactions", con, if_exists="replace", index=False)
     con.execute("CREATE INDEX IF NOT EXISTS ix_cust_day ON transactions (customer_id, day_num)")
     con.commit()

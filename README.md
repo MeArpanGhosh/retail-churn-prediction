@@ -164,8 +164,9 @@ retail-churn-prediction/
     ├── roc_pr_curves.png              # ROC and PR curve comparison
     ├── decile_churn_rate.png          # Churn rate by risk decile
     ├── feature_importance.png         # Top feature importance chart
-    └── tableau/                       # Aggregated CSVs & Tableau Public build guide
-        ├── TABLEAU_BUILD_GUIDE.md     # Two-dashboard Tableau Public instructions
+    └── tableau/                       # Aggregated exports & Tableau Public build guide
+        ├── TABLEAU_BUILD_GUIDE.md     # Tableau Public Web Authoring instructions
+        ├── sales_performance.xlsx     # Multi-sheet workbook for Dashboard 1 (web authoring)
         ├── sales_orders.csv           # Invoice-level sales (36.6K rows)
         ├── sales_products.csv         # Month × Country × Product sales (117K rows)
         └── scored_customers.csv       # Scored test-snapshot customers (2,775 rows)

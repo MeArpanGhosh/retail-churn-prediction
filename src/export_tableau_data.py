@@ -1,12 +1,15 @@
-"""Export compact, Tableau-Public-ready CSVs from the retail churn SQLite database.
+"""Export compact, Tableau-Public-ready datasets from the retail churn SQLite database.
 
-Builds three aggregated datasets in outputs/tableau/ (without duplicating the 794K raw lines):
-  1. sales_orders.csv    — invoice-level purchases (36.6K rows) for exact KPIs, YoY monthly
-                           trends, and top countries with Date & Country cross-filtering.
-  2. sales_products.csv  — Month x Country x Product revenue (117K rows) with canonical product
-                           descriptions so Date & Country filters update Top 10 Products too.
-  3. scored_customers.csv — test-snapshot customers (2,775 rows) with XGBoost churn risk score,
-                           risk decile, RFM quintiles/segments, last order date, and total spend.
+Builds aggregated files in outputs/tableau/ (without duplicating the 794K raw lines):
+  1. sales_performance.xlsx — single-upload workbook for Tableau Public Web Authoring with
+                              three 1-to-many related sheets: calendar_country, sales_orders,
+                              and sales_products.
+  2. sales_orders.csv       — invoice-level purchases (36.6K rows) for exact KPIs, YoY monthly
+                              trends, and top countries with Date & Country cross-filtering.
+  3. sales_products.csv     — Month x Country x Product revenue (117K rows) with canonical product
+                              descriptions so Date & Country filters update Top 10 Products too.
+  4. scored_customers.csv   — test-snapshot customers (2,775 rows) with XGBoost churn risk score,
+                              risk decile, RFM quintiles/segments, last order date, and total spend.
 
 Usage:
   python src/export_tableau_data.py
@@ -162,20 +165,24 @@ def open_or_build_db(db_path: Path, data_path: Path) -> sqlite3.Connection:
     print(f"Building {db_path} from {data_path}...")
     raw = load_raw(data_path)
     tx, _ = clean(raw)
-    return build_db(tx)
+    return build_db(tx, db_path=db_path)
 
 
-def export_sales_tables(con: sqlite3.Connection, out_dir: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Export invoice-grain sales_orders.csv and month-country-product sales_products.csv."""
+def export_sales_tables(
+    con: sqlite3.Connection, out_dir: Path
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """Export sales CSVs and a combined multi-sheet Excel workbook for Tableau Web Authoring."""
     orders = pd.read_sql_query(SALES_ORDERS_SQL, con)
     orders["month_name"] = orders["month_num"].map(MONTH_NAMES)
     orders["month_status"] = orders["order_month"].map(
         lambda m: "Partial (Dec 1-9)" if m == "2011-12-01" else "Complete"
     )
+    orders["month_country_key"] = orders["order_month"] + "|" + orders["country"]
     orders = orders[
         [
             "invoice", "order_date", "order_month", "year", "month_num", "month_name",
-            "month_status", "customer_id", "country", "order_value", "n_items", "total_units",
+            "month_status", "customer_id", "country", "month_country_key",
+            "order_value", "n_items", "total_units",
         ]
     ]
     orders.to_csv(out_dir / "sales_orders.csv", index=False)
@@ -185,14 +192,41 @@ def export_sales_tables(con: sqlite3.Connection, out_dir: Path) -> tuple[pd.Data
     products = products.merge(desc_map, on="stock_code", how="left")
     products["description"] = products["description"].fillna(products["stock_code"])
     products["product_label"] = products["description"] + " (" + products["stock_code"] + ")"
+    products["month_country_key"] = products["order_month"] + "|" + products["country"]
     products = products[
         [
-            "order_month", "year", "month_num", "country", "stock_code",
-            "description", "product_label", "revenue", "units_sold", "order_count",
+            "order_month", "year", "month_num", "country", "month_country_key",
+            "stock_code", "description", "product_label", "revenue", "units_sold", "order_count",
         ]
     ]
     products.to_csv(out_dir / "sales_products.csv", index=False)
-    return orders, products
+
+    calendar_country = (
+        orders[
+            [
+                "month_country_key", "order_month", "year", "month_num",
+                "month_name", "month_status", "country",
+            ]
+        ]
+        .drop_duplicates()
+        .sort_values(["order_month", "country"])
+        .reset_index(drop=True)
+    )
+    # Use proper Date objects in Excel so Tableau recognizes order_date/order_month natively.
+    orders_xl = orders.copy()
+    orders_xl["order_date"] = pd.to_datetime(orders_xl["order_date"]).dt.date
+    orders_xl["order_month"] = pd.to_datetime(orders_xl["order_month"]).dt.date
+    products_xl = products.copy()
+    products_xl["order_month"] = pd.to_datetime(products_xl["order_month"]).dt.date
+    cal_xl = calendar_country.copy()
+    cal_xl["order_month"] = pd.to_datetime(cal_xl["order_month"]).dt.date
+
+    with pd.ExcelWriter(out_dir / "sales_performance.xlsx", engine="openpyxl") as xw:
+        cal_xl.to_excel(xw, sheet_name="calendar_country", index=False)
+        orders_xl.to_excel(xw, sheet_name="sales_orders", index=False)
+        products_xl.to_excel(xw, sheet_name="sales_products", index=False)
+
+    return calendar_country, orders, products
 
 
 def export_scored_customers(con: sqlite3.Connection, out_dir: Path) -> pd.DataFrame:
@@ -254,15 +288,16 @@ def main():
     args.out_dir.mkdir(parents=True, exist_ok=True)
     con = open_or_build_db(args.db, args.data)
     try:
-        orders, products = export_sales_tables(con, args.out_dir)
+        calendar_country, orders, products = export_sales_tables(con, args.out_dir)
         scored = export_scored_customers(con, args.out_dir)
     finally:
         con.close()
 
-    print(f"Exported Tableau CSVs to {args.out_dir}:")
-    print(f"  sales_orders.csv:     {len(orders):,} rows | total revenue £{orders['order_value'].sum():,.2f}")
-    print(f"  sales_products.csv:   {len(products):,} rows | total revenue £{products['revenue'].sum():,.2f}")
-    print(f"  scored_customers.csv: {len(scored):,} rows | top 50 min risk = {scored.head(50)['predicted_risk'].min():.3f}")
+    print(f"Exported Tableau files to {args.out_dir}:")
+    print(f"  sales_performance.xlsx: {len(calendar_country):,} calendar_country | {len(orders):,} orders | {len(products):,} products")
+    print(f"  sales_orders.csv:       {len(orders):,} rows | total revenue £{orders['order_value'].sum():,.2f}")
+    print(f"  sales_products.csv:     {len(products):,} rows | total revenue £{products['revenue'].sum():,.2f}")
+    print(f"  scored_customers.csv:   {len(scored):,} rows | top 50 min risk = {scored.head(50)['predicted_risk'].min():.3f}")
 
 
 if __name__ == "__main__":
