@@ -116,6 +116,9 @@ def clean(df: pd.DataFrame):
     log.append(("rows after cleaning", len(df)))
     cols = ["invoice", "stock_code", "quantity", "price", "customer_id", "invoice_date",
             "day_num", "is_return", "line_amount"]
+    if "description" in df.columns:
+        df["description"] = df["description"].fillna("").astype(str).str.strip()
+        cols.append("description")
     if "country" in df.columns:
         cols.append("country")
     out = df[cols].copy()
@@ -149,6 +152,12 @@ def snapshot_features(con, cutoff: str) -> pd.DataFrame:
 def add_python_features(d: pd.DataFrame) -> pd.DataFrame:
     """Add derived features that are more naturally expressed in Python."""
     d = d.copy()
+    if "last_day" in d.columns:
+        d["last_order_date"] = (
+            ORIGIN + pd.to_timedelta(d["last_day"], unit="D")
+        ).dt.strftime("%Y-%m-%d")
+    d["total_spend"] = d["monetary"].astype(float)
+    d["raw_avg_order_value"] = d["avg_order_value"].astype(float)
     d["spend_trend"] = np.log((d["spend_last_90d"].clip(lower=0) + 1)
                               / (d["spend_prev_90d"].clip(lower=0) + 1))
     gap = d["avg_gap_days"].where(d["avg_gap_days"] > 0)
@@ -193,16 +202,41 @@ def evaluate(y, p, top_fraction=TOP_FRACTION):
             "lift_at_top20pct": prec_k / base if base > 0 else float("nan")}
 
 
+def assign_risk_deciles(scores) -> np.ndarray:
+    """Assign 1-based risk deciles (1 = highest predicted risk) matching decile_table."""
+    p = np.asarray(scores, dtype=float)
+    order = np.argsort(-p, kind="mergesort")
+    deciles = np.empty(len(p), dtype=int)
+    deciles[order] = pd.qcut(np.arange(len(p)), 10, labels=range(1, 11)).astype(int)
+    return deciles
+
+
 def decile_table(y, p):
     """Build a risk decile table for business stakeholder communication."""
-    t = pd.DataFrame({"y": y, "p": p}).sort_values("p", ascending=False).reset_index(drop=True)
-    t["decile"] = pd.qcut(t.index, 10, labels=range(1, 11))
+    t = pd.DataFrame({"y": y, "p": p, "decile": assign_risk_deciles(p)})
     g = t.groupby("decile", observed=True).agg(customers=("y", "size"),
                                                churners=("y", "sum"),
                                                churn_rate=("y", "mean"),
                                                mean_predicted=("p", "mean")).reset_index()
     g["cum_share_of_churners"] = g["churners"].cumsum() / g["churners"].sum()
     return g
+
+
+def fit_and_score(train: pd.DataFrame, test: pd.DataFrame):
+    """Train baseline/LR/GBM models on training snapshots and score the test snapshot."""
+    X_tr, y_tr = train[FEATURES], train["churned"].to_numpy()
+    X_te = test[FEATURES]
+    logreg, gbm = make_models()
+    gbm_name = "XGBoost" if HAS_XGB else "GradientBoosting (fallback)"
+
+    logreg.fit(X_tr, y_tr)
+    gbm.fit(X_tr, y_tr)
+    scores = {
+        "Baseline: recency only": test["recency_days"].to_numpy().astype(float),
+        "Logistic regression": logreg.predict_proba(X_te)[:, 1],
+        gbm_name: gbm.predict_proba(X_te)[:, 1],
+    }
+    return logreg, gbm, gbm_name, scores
 
 
 # --------------------------------------------------------------------------- #
@@ -322,19 +356,12 @@ def main():
     print("\n" + "=" * 60)
     print("STEP 3: Training models")
     print("=" * 60)
-    X_tr, y_tr = train[FEATURES], train["churned"].to_numpy()
-    X_te, y_te = test[FEATURES], test["churned"].to_numpy()
-    logreg, gbm = make_models()
-    gbm_name = "XGBoost" if HAS_XGB else "GradientBoosting (fallback)"
-
-    logreg.fit(X_tr, y_tr)
+    y_tr = train["churned"].to_numpy()
+    y_te = test["churned"].to_numpy()
+    X_te = test[FEATURES]
+    _, gbm, gbm_name, scores = fit_and_score(train, test)
     print("  ✓ Logistic Regression trained")
-    gbm.fit(X_tr, y_tr)
     print(f"  ✓ {gbm_name} trained")
-
-    scores = {"Baseline: recency only": test["recency_days"].to_numpy().astype(float),
-              "Logistic regression": logreg.predict_proba(X_te)[:, 1],
-              gbm_name: gbm.predict_proba(X_te)[:, 1]}
 
     # Step 4: Evaluate
     print("\n" + "=" * 60)

@@ -111,6 +111,7 @@ future AS (
 
 -- Final output: one row per active customer with features and churn label
 SELECT s.customer_id,
+       s.last_day,
        s.recency_days,
        s.tenure_days,
        s.n_orders,
@@ -131,4 +132,5 @@ FROM scored s
 LEFT JOIN gaps    g ON g.customer_id = s.customer_id
 LEFT JOIN latest  l ON l.customer_id = s.customer_id
 LEFT JOIN returns r ON r.customer_id = s.customer_id
-LEFT JOIN future  f ON f.customer_id = s.customer_id;
+LEFT JOIN future  f ON f.customer_id = s.customer_id
+ORDER BY s.customer_id;

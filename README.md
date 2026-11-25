@@ -1,6 +1,6 @@
 # 🛒 Customer Churn Prediction — Online Retail Analytics
 
-> **End-to-end ML pipeline** that predicts which active customers of a UK-based online retailer will **not purchase again within 90 days**, enabling targeted retention campaigns that reach **35% of at-risk customers by contacting only the top 20%** — a **1.73× lift** over random outreach.
+> **End-to-end ML pipeline** that predicts which active customers of a UK-based online retailer will **not purchase again within 90 days**, enabling targeted retention campaigns that reach **34% of at-risk customers by contacting only the top 20%** — a **1.69× lift** over random outreach.
 
 Built with **SQL** (CTEs, window functions), **Python**, **Pandas**, **scikit-learn**, and **XGBoost** on the [UCI Online Retail II](https://archive.ics.uci.edu/dataset/502/online+retail+ii) dataset (~1.07M transactions, Dec 2009–Dec 2011).
 
@@ -35,7 +35,7 @@ This project answers that by building a **churn propensity model** that scores e
               ┌───────────────┼───────────────┐
               ▼               ▼               ▼
        ┌────────────┐  ┌───────────┐  ┌────────────┐
-       │  Recency   │  │  Logistic │  │  XGBoost*  │    *XGBoost edges out logistic regression by only 0.002 ROC-AUC — a gap that may not be statistically significant, suggesting the simpler model        |            |  |           |  |            |     is a viable production choice where interpretability matters
+       │  Recency   │  │  Logistic │  │  XGBoost*  │
        │  Baseline  │  │ Regression│  │  (best)    │
        └────────────┘  └───────────┘  └────────────┘
               │               │               │
@@ -48,6 +48,8 @@ This project answers that by building a **churn propensity model** that scores e
                    └──────────────────────┘
 ```
 
+*\*XGBoost and Logistic Regression perform virtually identically on ROC-AUC (0.756 vs 0.757), with XGBoost edging ahead on PR-AUC (0.616 vs 0.614) and Top-20% lift (1.69× vs 1.68×) — suggesting Logistic Regression remains a strong, interpretable alternative.*
+
 ---
 
 ## 📊 Key Results
@@ -56,14 +58,14 @@ This project answers that by building a **churn propensity model** that scores e
 
 | Model | ROC-AUC | PR-AUC | Brier Score | Precision@Top20% | Recall@Top20% | Lift@Top20% |
 |:------|:-------:|:------:|:-----------:|:-----------------:|:-------------:|:-----------:|
-| Baseline (recency only) | 0.658 | 0.534 | — | 0.604 | 0.314 | 1.57× |
+| Baseline (recency only) | 0.658 | 0.534 | — | 0.602 | 0.313 | 1.56× |
 | Logistic Regression | 0.757 | 0.614 | 0.235 | 0.645 | 0.335 | 1.68× |
-| **XGBoost** | **0.759** | **0.623** | **0.236** | **0.665** | **0.346** | **1.73×** |
+| **XGBoost** | **0.756** | **0.616** | **0.240** | **0.652** | **0.339** | **1.69×** |
 
 ### Business Impact
 
-- **Targeting the top 20%** of at-risk customers captures **35% of all churners** — 1.73× better than random outreach
-- The **two highest-risk deciles** contain **35% of all churners** with churn rates of 66.5% and 66.4% (vs. 38.5% base rate)
+- **Targeting the top 20%** of at-risk customers captures **34% of all churners** — 1.69× better than random outreach
+- The **two highest-risk deciles** contain **34% of all churners** with churn rates of 69.8% and 60.6% (vs. 38.5% base rate)
 - **Top features**: purchase frequency score, monetary score, max inter-purchase gap — indicating that buying rhythm disruption is the strongest churn signal
 
 ### Visualizations
@@ -76,7 +78,7 @@ This project answers that by building a **churn propensity model** that scores e
 <p align="center">
   <img src="outputs/decile_churn_rate.png" alt="Churn rate by risk decile" width="55%"/>
 </p>
-<p align="center"><em>Churn rate by predicted risk decile — the model separates high-risk (66%) from low-risk (1%) customers effectively</em></p>
+<p align="center"><em>Churn rate by predicted risk decile — the model separates high-risk (70%) from low-risk (3%) customers effectively</em></p>
 
 <p align="center">
   <img src="outputs/feature_importance.png" alt="Feature importance" width="55%"/>
@@ -144,7 +146,8 @@ retail-churn-prediction/
 │   └── features.sql                   # Feature engineering query (CTEs, window functions)
 │
 ├── src/
-│   └── churn_pipeline.py              # End-to-end pipeline: clean → SQL → train → evaluate
+│   ├── churn_pipeline.py              # End-to-end pipeline: clean → SQL → train → evaluate
+│   └── export_tableau_data.py         # Export compact aggregated CSVs for Tableau Public
 │
 ├── notebooks/
 │   └── exploratory_analysis.ipynb     # EDA notebook with inline visualizations
@@ -160,7 +163,12 @@ retail-churn-prediction/
     ├── data_quality_log.csv           # Row-level cleaning audit trail
     ├── roc_pr_curves.png              # ROC and PR curve comparison
     ├── decile_churn_rate.png          # Churn rate by risk decile
-    └── feature_importance.png         # Top feature importance chart
+    ├── feature_importance.png         # Top feature importance chart
+    └── tableau/                       # Aggregated CSVs & Tableau Public build guide
+        ├── TABLEAU_BUILD_GUIDE.md     # Two-dashboard Tableau Public instructions
+        ├── sales_orders.csv           # Invoice-level sales (36.6K rows)
+        ├── sales_products.csv         # Month × Country × Product sales (117K rows)
+        └── scored_customers.csv       # Scored test-snapshot customers (2,775 rows)
 ```
 
 ---
@@ -169,7 +177,7 @@ retail-churn-prediction/
 
 ```bash
 # 1. Clone and install
-git clone https://github.com/yourusername/retail-churn-prediction.git
+git clone https://github.com/MeArpanGhosh/retail-churn-prediction.git
 cd retail-churn-prediction
 pip install -r requirements.txt
 
@@ -180,12 +188,15 @@ pip install -r requirements.txt
 # 3. Run the pipeline
 python src/churn_pipeline.py --data data/raw/online_retail_II.xlsx
 
-# 4. (Optional) Smoke test with synthetic data
+# 4. Export Tableau-ready CSVs
+python src/export_tableau_data.py
+
+# 5. (Optional) Smoke test with synthetic data
 python tests/make_synthetic_data.py data/raw/synthetic_test.xlsx
 python src/churn_pipeline.py --data data/raw/synthetic_test.xlsx
 ```
 
-All outputs (metrics, figures, summary report) are written to `outputs/`.
+All outputs (metrics, figures, summary report, and Tableau extracts in `outputs/tableau/`) are written to `outputs/`.
 
 ---
 
@@ -193,7 +204,7 @@ All outputs (metrics, figures, summary report) are written to `outputs/`.
 
 Based on the model results:
 
-1. **Prioritize retention offers** to the top 2 risk deciles — these customers have a **66% probability of churning** (vs. 38% overall) and contacting them captures over a third of all at-risk customers
+1. **Prioritize retention offers** to the top 2 risk deciles — these customers churn at **69.8% and 60.6%** (vs. 38.5% overall) and contacting them captures **34%** of all at-risk customers
 2. **Monitor purchase gap anomalies** — `max_gap_days` and `recency_vs_gap` (how overdue a customer is relative to their own buying rhythm) are strong early warning signals
 3. **Measure causal impact** — deploy with a randomized holdout group to verify that the retention offer *causes* re-engagement rather than just predicting it
 4. **Re-score monthly** — customer risk changes; running the model on fresh data ensures the campaign stays targeted

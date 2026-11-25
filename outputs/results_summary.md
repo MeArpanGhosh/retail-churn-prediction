@@ -11,16 +11,16 @@ Test snapshot: customers active in the 180 days before 2011-09-09; churn = no pu
 
 | Model | ROC-AUC | PR-AUC | Brier | Precision@top20% | Recall@top20% | Lift@top20% |
 |---|---|---|---|---|---|---|
-| Baseline: recency only | 0.658 | 0.534 | n/a | 0.604 | 0.314 | 1.57 |
+| Baseline: recency only | 0.658 | 0.534 | n/a | 0.602 | 0.313 | 1.56 |
 | Logistic regression | 0.757 | 0.614 | 0.235 | 0.645 | 0.335 | 1.68 |
-| XGBoost | 0.759 | 0.623 | 0.236 | 0.665 | 0.346 | 1.73 |
+| XGBoost | 0.756 | 0.616 | 0.240 | 0.652 | 0.339 | 1.69 |
 
 Lift is capped by the base rate: with a 38% churn rate the best possible lift at the top 20% is 2.60x, so read lift together with precision and recall.
 
 ## Business reading
 
-- Contacting the 20% of customers with the highest predicted risk reaches 35% of customers who actually lapse, 1.73x better than contacting customers at random.
-- The two highest-risk deciles contain 35% of all churners.
+- Contacting the 20% of customers with the highest predicted risk reaches 34% of customers who actually lapse, 1.69x better than contacting customers at random.
+- The two highest-risk deciles contain 34% of all churners.
 - Suggested use: send a retention offer to the highest-risk deciles first, and compare repeat purchases against a held-out group to measure whether the offer, not just the model, causes the improvement.
 
 ## Data-quality log
